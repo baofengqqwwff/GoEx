@@ -28,18 +28,25 @@ const (
 	UNFINISHED_ORDERS_INFO = "openOrders?"
 	ALL_ORDERS             = "allOrders?"
 	KLINNE_URI             = "klines?"
+	TIME_URI               = "time"
 )
 
 type Binance struct {
 	accessKey,
 	secretKey string
 	httpClient *http.Client
+	timeAdjust int64
 }
-
+func (bn *Binance)SetTimeAdjust(timeAdjust int64 ){
+	bn.timeAdjust=timeAdjust
+}
 func (bn *Binance) buildParamsSigned(postForm *url.Values) error {
-	postForm.Set("recvWindow", "6000000")
-	tonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	postForm.Set("recvWindow", "5000")
+	tonce := strconv.FormatInt(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)-bn.timeAdjust, 10)
 	postForm.Set("timestamp", tonce)
+	//fmt.Println(bn.GetTime())
+	//fmt.Println(strconv.FormatInt(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond), 10))
+	//postForm.Set("timestamp", strconv.FormatInt(bn.GetTime(),10))
 	payload := postForm.Encode()
 	sign, _ := GetParamHmacSHA256Sign(bn.secretKey, payload)
 	postForm.Set("signature", sign)
@@ -47,13 +54,19 @@ func (bn *Binance) buildParamsSigned(postForm *url.Values) error {
 }
 
 func New(client *http.Client, api_key, secret_key string) *Binance {
-	return &Binance{api_key, secret_key, client}
+	return &Binance{api_key, secret_key, client,0}
 }
 
 func (bn *Binance) GetExchangeName() string {
 	return EXCHANGE_NAME
 }
+func (bn *Binance) GetTime() int64 {
+	timeUri := API_V1+TIME_URI
+	bodyDataMap, _ := HttpGet(bn.httpClient, timeUri)
+	time := int64(bodyDataMap["serverTime"].(float64))
+	return time
 
+}
 func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since int) ([]Kline, error) {
 	klineUri := API_V1 + KLINNE_URI
 	params := url.Values{}
@@ -119,8 +132,10 @@ func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since in
 
 func (bn *Binance) GetAllBookTickers() ([]*Ticker, error) {
 	tickerUri := API_V1 + TICKERS_URI
-	bodyDataMapList, err := HttpGet3(bn.httpClient, tickerUri, nil)
-
+	//bodyDataMapList, err := HttpGet3(bn.httpClient, tickerUri,nil)
+	respData, err := NewHttpRequest(bn.httpClient, "GET", tickerUri, "", nil)
+	var bodyDataMapList []interface{}
+	err = json.Unmarshal(respData, &bodyDataMapList)
 	if err != nil {
 		log.Println("GetTicker error:", err)
 		return nil, err
