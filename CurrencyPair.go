@@ -21,12 +21,12 @@ var (
 	UNKNOWN = Currency{"UNKNOWN", ""}
 	CNY     = Currency{"CNY", "rmb （China Yuan)"}
 	USD     = Currency{"USD", "USA dollar"}
-	USDT    = Currency{"USDT","http://tether.io"}
+	USDT    = Currency{"USDT", "http://tether.io"}
 	EUR     = Currency{"EUR", ""}
 	BTC     = Currency{"BTC", "bitcoin.org"}
 	XBT     = Currency{"XBT", "bitcoin.org"}
 	BCC     = Currency{"BCC", "bitcoin-abc"}
-	BCH     = Currency{"BCH","bitcoin-abc"}
+	BCH     = Currency{"BCH", "bitcoin-abc"}
 	LTC     = Currency{"LTC", "litecoin.org"}
 	ETH     = Currency{"ETH", ""}
 	ETC     = Currency{"ETC", ""}
@@ -61,7 +61,7 @@ var (
 	BCC_USD = CurrencyPair{BCC, USD}
 	XRP_USD = CurrencyPair{XRP, USD}
 
-	XRP_EUR = CurrencyPair{XRP , EUR}
+	XRP_EUR = CurrencyPair{XRP, EUR}
 
 	LTC_BTC = CurrencyPair{LTC, BTC}
 	ETH_BTC = CurrencyPair{ETH, BTC}
@@ -69,12 +69,12 @@ var (
 	BCC_BTC = CurrencyPair{BCC, BTC}
 	BCH_BTC = CurrencyPair{BCH, BTC}
 	DCR_BTC = CurrencyPair{DCR, BTC}
-	XRP_BTC = CurrencyPair{XRP ,BTC}
+	XRP_BTC = CurrencyPair{XRP, BTC}
 
 	ETC_ETH = CurrencyPair{ETC, ETH}
 	EOS_ETH = CurrencyPair{EOS, ETH}
 
-	UNKNOWN_PAIR = CurrencyPair{UNKNOWN,UNKNOWN}
+	UNKNOWN_PAIR = CurrencyPair{UNKNOWN, UNKNOWN}
 )
 
 func (c CurrencyPair) String() string {
@@ -89,11 +89,11 @@ func NewCurrencyPair(currencyA Currency, currencyB Currency) CurrencyPair {
 	return CurrencyPair{currencyA, currencyB}
 }
 
-func NewCurrencyPair2(currencyPairSymbol string) CurrencyPair  {
-	currencys := strings.Split(currencyPairSymbol , "_")
+func NewCurrencyPair2(currencyPairSymbol string) CurrencyPair {
+	currencys := strings.Split(currencyPairSymbol, "_")
 	if len(currencys) == 2 {
-		return CurrencyPair{NewCurrency(currencys[0] , "") ,
-			NewCurrency(currencys[1] , "")}
+		return CurrencyPair{NewCurrency(currencys[0], ""),
+			NewCurrency(currencys[1], "")}
 	}
 	return UNKNOWN_PAIR
 }

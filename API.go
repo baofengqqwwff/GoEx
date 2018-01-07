@@ -14,8 +14,9 @@ type API interface {
 	GetAccount() (*Account, error)
 
 	GetTicker(currency CurrencyPair) (*Ticker, error)
+	GetTickkers() ([]*Ticker, error)
 	GetDepth(size int, currency CurrencyPair) (*Depth, error)
-	GetKlineRecords(currency CurrencyPair, period , size, since int) ([]Kline, error)
+	GetKlineRecords(currency CurrencyPair, period, size, since int) ([]Kline, error)
 	//非个人，整个交易所的交易记录
 	GetTrades(currencyPair CurrencyPair, since int64) ([]Trade, error)
 

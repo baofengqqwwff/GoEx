@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	. "github.com/baofengqqwwff/GoEx"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	. "github.com/baofengqqwwff/GoEx"
 )
 
 const (
@@ -25,6 +26,8 @@ const (
 	ACCOUNT_URI            = "account?"
 	ORDER_URI              = "order?"
 	UNFINISHED_ORDERS_INFO = "openOrders?"
+	ALL_ORDERS             = "allOrders?"
+	KLINNE_URI             = "klines?"
 )
 
 type Binance struct {
@@ -51,6 +54,90 @@ func (bn *Binance) GetExchangeName() string {
 	return EXCHANGE_NAME
 }
 
+func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since int) ([]Kline, error) {
+	klineUri := API_V1 + KLINNE_URI
+	params := url.Values{}
+	params.Set("symbol", currency.ToSymbol(""))
+	if size > 0 {
+		params.Set("limit", strconv.Itoa(size))
+	}
+	if since > 0 {
+		params.Set("startTime", strconv.Itoa(since))
+	}
+	switch period {
+	case KLINE_PERIOD_1MIN:
+		{
+			params.Set("interval", "1m")
+		}
+	case KLINE_PERIOD_5MIN:
+		{
+			params.Set("interval", "5m")
+		}
+	case KLINE_PERIOD_15MIN:
+		{
+			params.Set("interval", "15m")
+		}
+	case KLINE_PERIOD_30MIN:
+		{
+			params.Set("interval", "30m")
+		}
+	case KLINE_PERIOD_60MIN:
+		{
+			params.Set("interval", "1h")
+		}
+	case KLINE_PERIOD_4H:
+		{
+			params.Set("interval", "4h")
+		}
+	case KLINE_PERIOD_1DAY:
+		{
+			params.Set("interval", "1d")
+		}
+	default:
+		return nil, errors.New("do not have this period")
+	}
+	path := klineUri + params.Encode()
+	respList, err := HttpGet3(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	klineList := []Kline{}
+	for _, resp := range respList {
+		kline := Kline{}
+		respBodyList, _ := resp.([]interface{})
+		kline.Timestamp = int64(respBodyList[0].(float64))
+		kline.Open, _ = strconv.ParseFloat(respBodyList[1].(string), 64)
+		kline.High, _ = strconv.ParseFloat(respBodyList[2].(string), 64)
+		kline.Low, _ = strconv.ParseFloat(respBodyList[3].(string), 64)
+		kline.Close, _ = strconv.ParseFloat(respBodyList[4].(string), 64)
+		kline.Vol, _ = strconv.ParseFloat(respBodyList[5].(string), 64)
+		klineList = append(klineList, kline)
+	}
+	return klineList, nil
+}
+
+func (bn *Binance) GetAllBookTickers() ([]*Ticker, error) {
+	tickerUri := API_V1 + TICKERS_URI
+	bodyDataMapList, err := HttpGet3(bn.httpClient, tickerUri, nil)
+
+	if err != nil {
+		log.Println("GetTicker error:", err)
+		return nil, err
+	}
+	var tickers []*Ticker
+	for _, bodyDataMap := range bodyDataMapList {
+		var ticker Ticker
+		tickerMap, _ := bodyDataMap.(map[string]interface{})
+		ticker.Symbol, _ = tickerMap["symbol"].(string)
+		ticker.Buy, _ = strconv.ParseFloat(tickerMap["bidPrice"].(string), 10)
+		ticker.Sell, _ = strconv.ParseFloat(tickerMap["askPrice"].(string), 10)
+		tickers = append(tickers, &ticker)
+	}
+
+	return tickers, nil
+}
+
 func (bn *Binance) GetTicker(currency CurrencyPair) (*Ticker, error) {
 	tickerUri := API_V1 + fmt.Sprintf(TICKER_URI, currency.ToSymbol(""))
 	bodyDataMap, err := HttpGet(bn.httpClient, tickerUri)
@@ -69,6 +156,7 @@ func (bn *Binance) GetTicker(currency CurrencyPair) (*Ticker, error) {
 	ticker.Low, _ = strconv.ParseFloat(tickerMap["lowPrice"].(string), 10)
 	ticker.High, _ = strconv.ParseFloat(tickerMap["highPrice"].(string), 10)
 	ticker.Vol, _ = strconv.ParseFloat(tickerMap["volume"].(string), 10)
+	ticker.Symbol, _ = tickerMap["symbol"].(string)
 	return &ticker, nil
 }
 
@@ -314,6 +402,59 @@ func (bn *Binance) GetUnfinishOrders(currencyPair CurrencyPair) ([]Order, error)
 			Side:      TradeSide(orderSide),
 			Status:    ORDER_UNFINISH,
 			OrderTime: ToInt(ord["time"])})
+	}
+	return orders, nil
+}
+
+func (bn *Binance) GetAllOrders(currencyPair CurrencyPair) ([]Order, error) {
+	params := url.Values{}
+	params.Set("symbol", currencyPair.ToSymbol(""))
+
+	bn.buildParamsSigned(&params)
+	path := API_V3 + ALL_ORDERS + params.Encode()
+
+	respmap, err := HttpGet3(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
+	//log.Println("respmap", respmap, "err", err)
+	if err != nil {
+		return nil, err
+	}
+
+	orders := make([]Order, 0)
+	for _, v := range respmap {
+		ord := v.(map[string]interface{})
+		side := ord["type"].(string)
+		orderSide := SELL
+		if side == "BUY" {
+			orderSide = BUY
+		}
+		ordStatus := ord["status"].(string)
+		var status TradeStatus
+		switch ordStatus {
+		case "NEW":
+			status = ORDER_UNFINISH
+		case "PARTIALLY_FILLED":
+			status = ORDER_PART_FINISH
+		case "FILLED":
+			status = ORDER_FINISH
+		case "CANCELED":
+			status = ORDER_CANCEL
+		case "REJECTED":
+			status = ORDER_REJECT
+		case "PENDING_CANCEL":
+			status = ORDER_CANCEL_ING
+		case "EXPIRED":
+			status = ORDER_EXPIRED
+		}
+
+		orders = append(orders, Order{
+			OrderID:    ToInt(ord["orderId"]),
+			Currency:   currencyPair,
+			Price:      ToFloat64(ord["price"]),
+			Amount:     ToFloat64(ord["origQty"]),
+			DealAmount: ToFloat64(ord["executedQty"]),
+			Side:       TradeSide(orderSide),
+			Status:     status,
+			OrderTime:  ToInt(ord["time"])})
 	}
 	return orders, nil
 }

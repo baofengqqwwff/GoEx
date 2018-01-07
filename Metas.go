@@ -39,13 +39,14 @@ type Account struct {
 }
 
 type Ticker struct {
-	Last float64 `json:"last"`
-	Buy  float64 `json:"buy"`
-	Sell float64 `json:"sell"`
-	High float64 `json:"high"`
-	Low  float64 `json:"low"`
-	Vol  float64 `json:"vol"`
-	Date uint64  `json:"date"`
+	Last   float64 `json:"last"`
+	Buy    float64 `json:"buy"`
+	Sell   float64 `json:"sell"`
+	High   float64 `json:"high"`
+	Low    float64 `json:"low"`
+	Vol    float64 `json:"vol"`
+	Date   uint64  `json:"date"`
+	Symbol string  `json:"symbol"`
 }
 
 type DepthRecord struct {
