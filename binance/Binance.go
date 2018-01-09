@@ -12,6 +12,7 @@ import (
 
 	. "github.com/baofengqqwwff/GoEx"
 	"strings"
+	"math"
 )
 
 const (
@@ -30,13 +31,47 @@ const (
 	ALL_ORDERS             = "allOrders?"
 	KLINNE_URI             = "klines?"
 	TIME_URI               = "time"
+	EXCHANGEINFO_URI       = "exchangeInfo"
 )
 
 type Binance struct {
 	accessKey,
 	secretKey string
-	httpClient *http.Client
-	timeAdjust int64
+	httpClient  *http.Client
+	timeAdjust  int64
+	symbolsInfo map[string]map[string]int //记录开仓的最小小数点
+}
+
+func (bn *Binance) getExchangeInfo() {
+	exchangeInfoUri := API_V1 + EXCHANGEINFO_URI
+	bodyDataMap, err := HttpGet(bn.httpClient, exchangeInfoUri)
+	if err != nil {
+		log.Fatal("初始化失败")
+		return
+	}
+	symbolsInfo, _ := bodyDataMap["symbols"].([]interface{})
+	for _, infoInterface := range symbolsInfo {
+		info, _ := infoInterface.(interface{})
+		symbolInfo, _ := info.(map[string]interface{})
+		symbolName, _ := symbolInfo["symbol"].(string)
+		symbolFilterInfo, _ := symbolInfo["filters"].([]interface{})
+		//获取价格精度
+		pricePrecisionInfo := symbolFilterInfo[0].(map[string]interface{})
+		pricePrecisionString, _ := pricePrecisionInfo["minPrice"].(string)
+		pricePrecisionFloat, _ := strconv.ParseFloat(pricePrecisionString, 64)
+		pricePrecision := int(-math.Log10(pricePrecisionFloat))
+
+		qtyPrecisonInfo := symbolFilterInfo[1].(map[string]interface{})
+		qtyPrecisionString, _ := qtyPrecisonInfo["minQty"].(string)
+		qtyPrecisionFloat, _ := strconv.ParseFloat(qtyPrecisionString, 64)
+		qtyPrecision := int(-math.Log10(qtyPrecisionFloat))
+
+		symbolPrecisonMap := map[string]int{}
+		symbolPrecisonMap["pricePrecision"] = pricePrecision
+		symbolPrecisonMap["qtyPrecision"] = qtyPrecision
+		bn.symbolsInfo[symbolName]=symbolPrecisonMap
+	}
+	fmt.Println(symbolsInfo)
 }
 
 func (bn *Binance) SetTimeAdjust(timeAdjust int64) {
@@ -59,7 +94,9 @@ func (bn *Binance) buildParamsSigned(postForm *url.Values) error {
 }
 
 func New(client *http.Client, api_key, secret_key string) *Binance {
-	return &Binance{api_key, secret_key, client, 0}
+	binance := &Binance{api_key, secret_key, client, 0, map[string]map[string]int{}}
+	binance.getExchangeInfo()
+	return binance
 }
 
 func (bn *Binance) GetExchangeName() string {
@@ -72,6 +109,7 @@ func (bn *Binance) GetTime() int64 {
 	return time
 
 }
+
 func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since int) ([]Kline, error) {
 	klineUri := API_V1 + KLINNE_URI
 	params := url.Values{}
