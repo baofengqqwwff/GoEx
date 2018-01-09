@@ -39,7 +39,7 @@ type Binance struct {
 	secretKey string
 	httpClient  *http.Client
 	timeAdjust  int64
-	symbolsInfo map[string]map[string]int //记录开仓的最小小数点
+	SymbolsInfo map[string]map[string]int //记录开仓的最小小数点
 }
 
 func (bn *Binance) getExchangeInfo() {
@@ -69,9 +69,8 @@ func (bn *Binance) getExchangeInfo() {
 		symbolPrecisonMap := map[string]int{}
 		symbolPrecisonMap["pricePrecision"] = pricePrecision
 		symbolPrecisonMap["qtyPrecision"] = qtyPrecision
-		bn.symbolsInfo[symbolName]=symbolPrecisonMap
+		bn.SymbolsInfo[symbolName]=symbolPrecisonMap
 	}
-	fmt.Println(symbolsInfo)
 }
 
 func (bn *Binance) SetTimeAdjust(timeAdjust int64) {
