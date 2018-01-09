@@ -11,6 +11,7 @@ import (
 	"time"
 
 	. "github.com/baofengqqwwff/GoEx"
+	"strings"
 )
 
 const (
@@ -37,12 +38,16 @@ type Binance struct {
 	httpClient *http.Client
 	timeAdjust int64
 }
-func (bn *Binance)SetTimeAdjust(timeAdjust int64 ){
-	bn.timeAdjust=timeAdjust
+
+func (bn *Binance) SetTimeAdjust(timeAdjust int64) {
+	bn.timeAdjust = timeAdjust
+}
+func (bn *Binance) syncTime() {
+	bn.timeAdjust = int64(time.Nanosecond)*time.Now().UnixNano()/int64(time.Millisecond) - bn.GetTime()
 }
 func (bn *Binance) buildParamsSigned(postForm *url.Values) error {
 	postForm.Set("recvWindow", "5000")
-	tonce := strconv.FormatInt(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)-bn.timeAdjust, 10)
+	tonce := strconv.FormatInt(int64(time.Nanosecond)*time.Now().UnixNano()/int64(time.Millisecond)-bn.timeAdjust, 10)
 	postForm.Set("timestamp", tonce)
 	//fmt.Println(bn.GetTime())
 	//fmt.Println(strconv.FormatInt(int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond), 10))
@@ -54,14 +59,14 @@ func (bn *Binance) buildParamsSigned(postForm *url.Values) error {
 }
 
 func New(client *http.Client, api_key, secret_key string) *Binance {
-	return &Binance{api_key, secret_key, client,0}
+	return &Binance{api_key, secret_key, client, 0}
 }
 
 func (bn *Binance) GetExchangeName() string {
 	return EXCHANGE_NAME
 }
 func (bn *Binance) GetTime() int64 {
-	timeUri := API_V1+TIME_URI
+	timeUri := API_V1 + TIME_URI
 	bodyDataMap, _ := HttpGet(bn.httpClient, timeUri)
 	time := int64(bodyDataMap["serverTime"].(float64))
 	return time
@@ -113,6 +118,10 @@ func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since in
 	respList, err := HttpGet3(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
 	if err != nil {
 		log.Println(err)
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 	klineList := []Kline{}
@@ -138,6 +147,10 @@ func (bn *Binance) GetAllBookTickers() ([]*Ticker, error) {
 	err = json.Unmarshal(respData, &bodyDataMapList)
 	if err != nil {
 		log.Println("GetTicker error:", err)
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 	var tickers []*Ticker
@@ -159,6 +172,10 @@ func (bn *Binance) GetTicker(currency CurrencyPair) (*Ticker, error) {
 
 	if err != nil {
 		log.Println("GetTicker error:", err)
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 	var tickerMap map[string]interface{} = bodyDataMap
@@ -186,6 +203,10 @@ func (bn *Binance) GetDepth(size int, currencyPair CurrencyPair) (*Depth, error)
 	resp, err := HttpGet(bn.httpClient, apiUrl)
 	if err != nil {
 		log.Println("GetDepth error:", err)
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 
@@ -283,6 +304,10 @@ func (bn *Binance) GetAccount() (*Account, error) {
 	respmap, err := HttpGet2(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
 	if err != nil {
 		log.Println(err)
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 	//log.Println("respmap:", respmap)
@@ -368,6 +393,10 @@ func (bn *Binance) GetOneOrder(orderId string, currencyPair CurrencyPair) (*Orde
 	respmap, err := HttpGet2(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
 
 	if err != nil {
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 	status := respmap["status"].(string)
@@ -397,6 +426,10 @@ func (bn *Binance) GetUnfinishOrders(currencyPair CurrencyPair) ([]Order, error)
 	respmap, err := HttpGet3(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
 	//log.Println("respmap", respmap, "err", err)
 	if err != nil {
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 
@@ -431,6 +464,10 @@ func (bn *Binance) GetAllOrders(currencyPair CurrencyPair) ([]Order, error) {
 	respmap, err := HttpGet3(bn.httpClient, path, map[string]string{"X-MBX-APIKEY": bn.accessKey})
 	//log.Println("respmap", respmap, "err", err)
 	if err != nil {
+		if strings.Contains(err.Error(), "-1021") {
+			log.Println("同步服务器时间")
+			bn.syncTime()
+		}
 		return nil, err
 	}
 
