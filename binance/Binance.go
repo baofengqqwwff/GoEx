@@ -18,7 +18,7 @@ import (
 const (
 	EXCHANGE_NAME = "binance.com"
 
-	API_BASE_URL = "https://www.binance.com/"
+	API_BASE_URL = "https://api.binance.com/"
 	API_V1       = API_BASE_URL + "api/v1/"
 	API_V3       = API_BASE_URL + "api/v3/"
 
